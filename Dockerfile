@@ -1,4 +1,4 @@
-FROM python:2.7-alpine
+FROM python:3.6-alpine
 
 RUN apk add --no-cache \
       bash \
@@ -14,20 +14,21 @@ RUN apk add --no-cache \
       openssl-dev \
       postgresql-dev \
       wget \
-  && pip install gunicorn==17.5 django-auth-ldap
+  && pip install gunicorn==17.5
 
 WORKDIR /opt
 
 ARG BRANCH=v2.1.3
 ARG URL=https://github.com/digitalocean/netbox/archive/$BRANCH.tar.gz
 RUN wget -q -O - "${URL}" | tar xz \
-  && ln -s netbox* netbox
+  && mv netbox* netbox
 
 WORKDIR /opt/netbox
 RUN pip install -r requirements.txt
 
 RUN ln -s configuration.docker.py netbox/netbox/configuration.py
 COPY docker/gunicorn_config.py /opt/netbox/
+COPY docker/nginx.conf /etc/netbox-nginx/nginx.conf
 
 COPY docker/docker-entrypoint.sh /docker-entrypoint.sh
 ENTRYPOINT [ "/docker-entrypoint.sh" ]
