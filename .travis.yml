@@ -1,6 +1,12 @@
 sudo: required
 language: python
 
+env:
+  - BUILD=release
+  - BUILD=prerelease
+  - BUILD=branches
+  - BUILD=special
+
 git:
   depth: 5
 
@@ -8,23 +14,18 @@ services:
   - docker
 
 install:
-  - docker-compose -f docker-compose.test.yml pull --parallel
-  - docker-compose -f docker-compose.test.yml build
+  - docker-compose pull --parallel
+  - docker-compose build
 
 script:
-  - docker-compose -f docker-compose.test.yml run app
+  - docker-compose run netbox ./manage.py test
 
 after_script:
-  - docker-compose -f docker-compose.test.yml down
+  - docker-compose down
 
 after_success:
   - docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
-  - if [ "$TRAVIS_BRANCH" = "master" -a "$TRAVIS_PULL_REQUEST" = "false" ]; then
-      ./build.sh master --push;
-      ./build.sh develop --push;
-      ./build-latest.sh --push;
-      PRERELEASE=true ./build-latest.sh --push;
-    fi
+  - ./build-all.sh --push
 
 notifications:
   slack:

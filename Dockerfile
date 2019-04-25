@@ -1,4 +1,4 @@
-FROM python:3.6-alpine
+FROM python:3.6-alpine3.9
 
 RUN apk add --no-cache \
       bash \
@@ -11,11 +11,23 @@ RUN apk add --no-cache \
       libxml2-dev \
       libxslt-dev \
       openldap-dev \
-      openssl-dev \
       postgresql-dev \
+      ttf-ubuntu-font-family \
       wget
 
-RUN pip install gunicorn
+RUN pip install \
+# gunicorn is used for launching netbox
+      gunicorn \
+# napalm is used for gathering information from network devices
+      napalm \
+# ruamel is used in startup_scripts
+      ruamel.yaml \
+# pinning django to the version required by netbox
+# adding it here, to install the correct version of
+# django-rq
+      'Django>=2.1.5,<2.2' \
+# django-rq is used for webhooks
+      django-rq
 
 WORKDIR /opt
 
@@ -28,14 +40,20 @@ WORKDIR /opt/netbox
 RUN pip install -r requirements.txt
 
 COPY docker/configuration.docker.py /opt/netbox/netbox/netbox/configuration.py
-COPY docker/gunicorn_config.py /opt/netbox/
+COPY configuration/gunicorn_config.py /etc/netbox/config/
 COPY docker/nginx.conf /etc/netbox-nginx/nginx.conf
+COPY docker/docker-entrypoint.sh docker-entrypoint.sh
+COPY startup_scripts/ /opt/netbox/startup_scripts/
+COPY initializers/ /opt/netbox/initializers/
+COPY configuration/configuration.py /etc/netbox/config/configuration.py
 
 WORKDIR /opt/netbox/netbox
 
-COPY docker/docker-entrypoint.sh /docker-entrypoint.sh
-ENTRYPOINT [ "/docker-entrypoint.sh" ]
+ENTRYPOINT [ "/opt/netbox/docker-entrypoint.sh" ]
 
-VOLUME ["/etc/netbox-nginx/"]
+CMD ["gunicorn", "-c /etc/netbox/config/gunicorn_config.py", "netbox.wsgi"]
 
-CMD ["gunicorn", "--log-level debug", "-c /opt/netbox/gunicorn_config.py", "netbox.wsgi"]
+LABEL SRC_URL="$URL"
+
+ARG NETBOX_DOCKER_PROJECT_VERSION=snapshot
+LABEL NETBOX_DOCKER_PROJECT_VERSION="$NETBOX_DOCKER_PROJECT_VERSION"
