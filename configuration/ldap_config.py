@@ -1,7 +1,26 @@
 import ldap
 import os
 
-from django_auth_ldap.config import LDAPSearch, GroupOfNamesType
+from django_auth_ldap.config import LDAPSearch
+from importlib import import_module
+
+# Read secret from file
+def read_secret(secret_name):
+    try:
+        f = open('/run/secrets/' + secret_name, 'r', encoding='utf-8')
+    except EnvironmentError:
+        return ''
+    else:
+        with f:
+            return f.readline().strip()
+
+# Import and return the group type based on string name
+def import_group_type(group_type_name):
+    mod = import_module('django_auth_ldap.config')
+    try:
+        return getattr(mod, group_type_name)()
+    except:
+        return None
 
 # Server URI
 AUTH_LDAP_SERVER_URI = os.environ.get('AUTH_LDAP_SERVER_URI', '')
@@ -13,7 +32,7 @@ AUTH_LDAP_CONNECTION_OPTIONS = {
 
 # Set the DN and password for the NetBox service account.
 AUTH_LDAP_BIND_DN = os.environ.get('AUTH_LDAP_BIND_DN', '')
-AUTH_LDAP_BIND_PASSWORD = os.environ.get('AUTH_LDAP_BIND_PASSWORD', '')
+AUTH_LDAP_BIND_PASSWORD = os.environ.get('AUTH_LDAP_BIND_PASSWORD', read_secret('auth_ldap_bind_password'))
 
 # Set a string template that describes any user’s distinguished name based on the username.
 AUTH_LDAP_USER_DN_TEMPLATE = os.environ.get('AUTH_LDAP_USER_DN_TEMPLATE', None)
@@ -35,7 +54,7 @@ AUTH_LDAP_GROUP_SEARCH_BASEDN = os.environ.get('AUTH_LDAP_GROUP_SEARCH_BASEDN', 
 AUTH_LDAP_GROUP_SEARCH_CLASS = os.environ.get('AUTH_LDAP_GROUP_SEARCH_CLASS', 'group')
 AUTH_LDAP_GROUP_SEARCH = LDAPSearch(AUTH_LDAP_GROUP_SEARCH_BASEDN, ldap.SCOPE_SUBTREE,
                                     "(objectClass=" + AUTH_LDAP_GROUP_SEARCH_CLASS + ")")
-AUTH_LDAP_GROUP_TYPE = GroupOfNamesType()
+AUTH_LDAP_GROUP_TYPE = import_group_type(os.environ.get('AUTH_LDAP_GROUP_TYPE', 'GroupOfNamesType'))
 
 # Define a group required to login.
 AUTH_LDAP_REQUIRE_GROUP = os.environ.get('AUTH_LDAP_REQUIRE_GROUP_DN', '')
